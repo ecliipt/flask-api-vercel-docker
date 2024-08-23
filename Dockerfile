@@ -1,17 +1,30 @@
-FROM python:3.8-rc-alpine
+FROM python:3.12
 
-WORKDIR /usr/src/app
+ARG DEBIAN_FRONTEND=noninteractive
 
-# Copy setup files like requirements, entrypoint, etc
-COPY requirements.txt requirements.txt
-COPY entrypoint.sh entrypoint.sh
-# Add execution permission to entrypoint script
-RUN chmod +x entrypoint.sh
+RUN apt-get update -q && \
+    apt-get install -y -qq --no-install-recommends \
+        xvfb \
+        libxcomposite1 \
+        libxdamage1 \
+        libatk1.0-0 \
+        libasound2 \
+        libdbus-1-3 \
+        libnspr4 \
+        libgbm1 \
+        libatk-bridge2.0-0 \
+        libcups2 \
+        libxkbcommon0 \
+        libatspi2.0-0 \
+        libnss3
 
-# Install dependencies
-RUN pip install -r requirements.txt
+COPY requirements.txt .
 
-COPY . .
+RUN pip3 install -r requirements.txt && \
+    playwright install chromium
 
-# Execute the app
-ENTRYPOINT [ "./entrypoint.sh" ]
+COPY api/index.py .
+
+ENV DISPLAY=:99
+
+CMD Xvfb :99 -screen 0 1024x768x16 & gunicorn api.index:app --timeout 150 & python3 api/index.py
